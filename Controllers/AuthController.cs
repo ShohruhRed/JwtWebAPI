@@ -13,8 +13,31 @@ namespace JwtWebAPI.Controllers
         [HttpPost("register")]
         public async Task<ActionResult<User>> Register(UserDto request)
         {
+            CreatePasswordHash(request.Password, out byte[] passwordHash, out byte[] passwordSalt);
 
+            user.Username = request.UserName;
+            user.PasswordHash = passwordHash;
+            user.PasswordSalt = passwordSalt;
+
+            return Ok(user);
         }
+        
+        [HttpPost("login")]
+        public async Task<ActionResult<string>> Login(UserDto request)
+        {
+            if(user.Username != request.UserName)
+            {
+                return BadRequest("User not found.");
+            }
+
+            if(!VerifyPasswordHash(request.Password, user.PasswordHash, user.PasswordSalt))
+            {
+                return BadRequest("Wrog password.");
+            }
+
+            return Ok("My TOKEN");
+        }
+
 
         private void CreatePasswordHash(string password, out byte[] passwordHash, out byte[] passwordSalt)
         {
@@ -27,10 +50,15 @@ namespace JwtWebAPI.Controllers
 
             }
         }
-
-        private byte[] GetBytes(string password)
+        private bool VerifyPasswordHash(string password, byte[] passwordHash, byte[] passwodSalt)
         {
-            throw new NotImplementedException();
+            using(var hmac = new HMACSHA512(user.PasswordSalt))
+            {
+                var computeHash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
+                return computeHash.SequenceEqual(passwordHash);
+
+            }
         }
+       
     }
 }
